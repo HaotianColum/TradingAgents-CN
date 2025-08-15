@@ -203,11 +203,23 @@ class ChatDashScopeOpenAIUnified(OpenAICompatibleBase):
         max_tokens: Optional[int] = None,
         **kwargs
     ):
+        # 支持通过环境变量切换国际/国内端点
+        base_url_env = os.getenv("DASHSCOPE_BASE_URL")
+        if isinstance(base_url_env, str):
+            base_url_env = base_url_env.strip().rstrip("/")
+        use_intl = os.getenv("DASHSCOPE_USE_INTL", "").strip().lower() in (
+            "1", "true", "yes", "on", "intl", "international", "sg"
+        )
+        base_url = base_url_env or (
+            "https://dashscope-intl.aliyuncs.com/compatible-mode/v1" if use_intl
+            else "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        )
+
         super().__init__(
             provider_name="dashscope",
             model=model,
             api_key_env_var="DASHSCOPE_API_KEY",
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            base_url=base_url,
             api_key=api_key,
             temperature=temperature,
             max_tokens=max_tokens,
@@ -256,7 +268,7 @@ OPENAI_COMPATIBLE_PROVIDERS = {
     },
     "dashscope": {
         "adapter_class": ChatDashScopeOpenAIUnified,
-        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "base_url": os.getenv("DASHSCOPE_BASE_URL") or "https://dashscope.aliyuncs.com/compatible-mode/v1",
         "api_key_env": "DASHSCOPE_API_KEY",
         "models": {
             "qwen-turbo": {"context_length": 8192, "supports_function_calling": True},

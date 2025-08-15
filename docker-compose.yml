@@ -4,8 +4,9 @@ services:
   # Streamlit Web 应用服务
   web:
     build: .
+    platform: linux/arm64
     image: tradingagents-cn:latest
-    container_name: TradingAgents-web
+    container_name: tradingagents-web
     ports:
       - "8501:8501"
     volumes:
@@ -21,23 +22,23 @@ services:
     env_file:
       - .env
     environment:
-      PYTHONUNBUFFERED: 1
-      PYTHONDONTWRITEBYTECODE: 1
+      PYTHONUNBUFFERED: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
       # 时区配置
-      TZ: "Asia/Shanghai"
+      TZ: Asia/Shanghai
       # 日志配置
-      TRADINGAGENTS_LOG_LEVEL: "INFO"
-      TRADINGAGENTS_LOG_DIR: "/app/logs"
-      TRADINGAGENTS_LOG_FILE: "/app/logs/tradingagents.log"
-      TRADINGAGENTS_LOG_MAX_SIZE: "100MB"
-      TRADINGAGENTS_LOG_BACKUP_COUNT: "5"
+      TRADINGAGENTS_LOG_LEVEL: INFO
+      TRADINGAGENTS_LOG_DIR: /app/logs
+      TRADINGAGENTS_LOG_FILE: /app/logs/tradingagents.log
+      TRADINGAGENTS_LOG_MAX_SIZE: 100MB
+      TRADINGAGENTS_LOG_BACKUP_COUNT: '5'
       # Docker专用数据库配置（覆盖.env中的本地配置）
       TRADINGAGENTS_MONGODB_URL: mongodb://admin:tradingagents123@mongodb:27017/tradingagents?authSource=admin
       TRADINGAGENTS_REDIS_URL: redis://:tradingagents123@redis:6379
       TRADINGAGENTS_CACHE_TYPE: redis
       # Docker环境标识和PDF支持
-      DOCKER_CONTAINER: "true"
-      DISPLAY: ":99"
+      DOCKER_CONTAINER: 'true'
+      DISPLAY: ':99'
     command: /usr/local/bin/start-xvfb.sh python -m streamlit run web/app.py --server.address=0.0.0.0 --server.port=8501
     depends_on:
       - mongodb
@@ -55,14 +56,15 @@ services:
     restart: unless-stopped
     # 日志配置
     logging:
-      driver: "json-file"
+      driver: json-file
       options:
         max-size: "100m"
         max-file: "3"
 
   # MongoDB数据库服务
   mongodb:
-    image: mongo:4.4
+    platform: linux/arm64
+    image: mongodb/mongodb-community-server:7.0-ubuntu2204
     container_name: tradingagents-mongodb
     restart: unless-stopped
     ports:
@@ -77,7 +79,7 @@ services:
     networks:
       - tradingagents-network
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongo localhost:27017/test --quiet
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -85,6 +87,7 @@ services:
 
   # Redis缓存服务
   redis:
+    platform: linux/arm64
     image: redis:latest
     container_name: tradingagents-redis
     restart: unless-stopped
@@ -104,6 +107,7 @@ services:
 
   # Redis Commander管理界面
   redis-commander:
+    platform: linux/arm64
     image: ghcr.io/joeferner/redis-commander:latest
     container_name: tradingagents-redis-commander
     restart: unless-stopped
@@ -124,6 +128,7 @@ services:
 
   # Mongo Express管理界面 (可选)
   mongo-express:
+    platform: linux/arm64
     image: mongo-express:latest
     container_name: tradingagents-mongo-express
     restart: unless-stopped
@@ -140,7 +145,7 @@ services:
     depends_on:
       - mongodb
     profiles:
-      - management  # 使用 --profile management 启动
+      - management
 
 # 数据卷定义
 volumes:

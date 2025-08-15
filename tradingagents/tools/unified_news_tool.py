@@ -6,6 +6,7 @@
 """
 
 import logging
+import os
 from datetime import datetime
 import re
 
@@ -21,6 +22,17 @@ class UnifiedNewsAnalyzer:
             toolkit: 包含各种新闻获取工具的工具包
         """
         self.toolkit = toolkit
+
+    def _openai_allowed(self, model_info: str = "") -> bool:
+        """是否允许使用OpenAI来源。
+        通过环境变量 DISABLE_OPENAI_SOURCES 控制，'true/1/yes/on' 表示禁用。
+        默认允许以保持兼容。
+        """
+        flag = os.getenv("DISABLE_OPENAI_SOURCES", "").strip().lower()
+        if flag in ("1", "true", "yes", "on"):  # 显式禁用
+            logger.info("[统一新闻工具] 🚫 已禁用OpenAI新闻来源 (DISABLE_OPENAI_SOURCES)")
+            return False
+        return True
         
     def get_stock_news_unified(self, stock_code: str, max_news: int = 10, model_info: str = "") -> str:
         """
@@ -129,17 +141,18 @@ class UnifiedNewsAnalyzer:
         except Exception as e:
             logger.warning(f"[统一新闻工具] Google新闻获取失败: {e}")
         
-        # 优先级3: OpenAI全球新闻
-        try:
-            if hasattr(self.toolkit, 'get_global_news_openai'):
-                logger.info(f"[统一新闻工具] 尝试OpenAI全球新闻...")
-                # 使用LangChain工具的正确调用方式：.invoke()方法和字典参数
-                result = self.toolkit.get_global_news_openai.invoke({"curr_date": curr_date})
-                if result and len(result.strip()) > 50:
-                    logger.info(f"[统一新闻工具] ✅ OpenAI新闻获取成功: {len(result)} 字符")
-                    return self._format_news_result(result, "OpenAI全球新闻", model_info)
-        except Exception as e:
-            logger.warning(f"[统一新闻工具] OpenAI新闻获取失败: {e}")
+        # 优先级3: OpenAI全球新闻（可禁用）
+        if self._openai_allowed(model_info):
+            try:
+                if hasattr(self.toolkit, 'get_global_news_openai'):
+                    logger.info(f"[统一新闻工具] 尝试OpenAI全球新闻...")
+                    # 使用LangChain工具的正确调用方式：.invoke()方法和字典参数
+                    result = self.toolkit.get_global_news_openai.invoke({"curr_date": curr_date})
+                    if result and len(result.strip()) > 50:
+                        logger.info(f"[统一新闻工具] ✅ OpenAI新闻获取成功: {len(result)} 字符")
+                        return self._format_news_result(result, "OpenAI全球新闻", model_info)
+            except Exception as e:
+                logger.warning(f"[统一新闻工具] OpenAI新闻获取失败: {e}")
         
         return "❌ 无法获取A股新闻数据，所有新闻源均不可用"
     
@@ -163,17 +176,18 @@ class UnifiedNewsAnalyzer:
         except Exception as e:
             logger.warning(f"[统一新闻工具] Google港股新闻获取失败: {e}")
         
-        # 优先级2: OpenAI全球新闻
-        try:
-            if hasattr(self.toolkit, 'get_global_news_openai'):
-                logger.info(f"[统一新闻工具] 尝试OpenAI港股新闻...")
-                # 使用LangChain工具的正确调用方式：.invoke()方法和字典参数
-                result = self.toolkit.get_global_news_openai.invoke({"curr_date": curr_date})
-                if result and len(result.strip()) > 50:
-                    logger.info(f"[统一新闻工具] ✅ OpenAI港股新闻获取成功: {len(result)} 字符")
-                    return self._format_news_result(result, "OpenAI港股新闻", model_info)
-        except Exception as e:
-            logger.warning(f"[统一新闻工具] OpenAI港股新闻获取失败: {e}")
+        # 优先级2: OpenAI全球新闻（可禁用）
+        if self._openai_allowed(model_info):
+            try:
+                if hasattr(self.toolkit, 'get_global_news_openai'):
+                    logger.info(f"[统一新闻工具] 尝试OpenAI港股新闻...")
+                    # 使用LangChain工具的正确调用方式：.invoke()方法和字典参数
+                    result = self.toolkit.get_global_news_openai.invoke({"curr_date": curr_date})
+                    if result and len(result.strip()) > 50:
+                        logger.info(f"[统一新闻工具] ✅ OpenAI港股新闻获取成功: {len(result)} 字符")
+                        return self._format_news_result(result, "OpenAI港股新闻", model_info)
+            except Exception as e:
+                logger.warning(f"[统一新闻工具] OpenAI港股新闻获取失败: {e}")
         
         # 优先级3: 实时新闻（如果支持港股）
         try:
@@ -196,17 +210,18 @@ class UnifiedNewsAnalyzer:
         # 获取当前日期
         curr_date = datetime.now().strftime("%Y-%m-%d")
         
-        # 优先级1: OpenAI全球新闻
-        try:
-            if hasattr(self.toolkit, 'get_global_news_openai'):
-                logger.info(f"[统一新闻工具] 尝试OpenAI美股新闻...")
-                # 使用LangChain工具的正确调用方式：.invoke()方法和字典参数
-                result = self.toolkit.get_global_news_openai.invoke({"curr_date": curr_date})
-                if result and len(result.strip()) > 50:
-                    logger.info(f"[统一新闻工具] ✅ OpenAI美股新闻获取成功: {len(result)} 字符")
-                    return self._format_news_result(result, "OpenAI美股新闻", model_info)
-        except Exception as e:
-            logger.warning(f"[统一新闻工具] OpenAI美股新闻获取失败: {e}")
+        # 优先级1: OpenAI全球新闻（可禁用）
+        if self._openai_allowed(model_info):
+            try:
+                if hasattr(self.toolkit, 'get_global_news_openai'):
+                    logger.info(f"[统一新闻工具] 尝试OpenAI美股新闻...")
+                    # 使用LangChain工具的正确调用方式：.invoke()方法和字典参数
+                    result = self.toolkit.get_global_news_openai.invoke({"curr_date": curr_date})
+                    if result and len(result.strip()) > 50:
+                        logger.info(f"[统一新闻工具] ✅ OpenAI美股新闻获取成功: {len(result)} 字符")
+                        return self._format_news_result(result, "OpenAI美股新闻", model_info)
+            except Exception as e:
+                logger.warning(f"[统一新闻工具] OpenAI美股新闻获取失败: {e}")
         
         # 优先级2: Google新闻（英文搜索）
         try:

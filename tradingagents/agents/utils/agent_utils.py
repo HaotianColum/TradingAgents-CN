@@ -852,9 +852,30 @@ class Toolkit:
                 logger.info(f"🇺🇸 [统一基本面工具] 处理美股数据...")
 
                 try:
-                    from tradingagents.dataflows.interface import get_fundamentals_openai
-                    us_data = get_fundamentals_openai(ticker, curr_date)
-                    result_data.append(f"## 美股基本面数据\n{us_data}")
+                    import os
+                    from tradingagents.dataflows.interface import (
+                        get_fundamentals_openai,
+                        get_fundamentals_finnhub,
+                        get_config,
+                    )
+
+                    # 环境与配置判定：若禁用OpenAI或非OpenAI端点，则直接使用Finnhub
+                    disable_openai = os.getenv("DISABLE_OPENAI_SOURCES", "").strip().lower() in ("1", "true", "yes", "on")
+                    cfg = get_config()
+                    backend_url = cfg.get("backend_url", "")
+                    openai_key = os.getenv("OPENAI_API_KEY")
+
+                    use_openai = (not disable_openai) and openai_key and ("openai.com" in backend_url)
+
+                    if use_openai:
+                        us_data = get_fundamentals_openai(ticker, curr_date)
+                        source = "OpenAI"
+                    else:
+                        logger.info("🇺🇸 [统一基本面工具] 已禁用或未配置OpenAI，使用Finnhub数据源")
+                        us_data = get_fundamentals_finnhub(ticker, curr_date)
+                        source = "Finnhub"
+
+                    result_data.append(f"## 美股基本面数据（来源：{source}）\n{us_data}")
                 except Exception as e:
                     result_data.append(f"## 美股基本面数据\n获取失败: {e}")
 

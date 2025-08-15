@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     wkhtmltopdf \
     xvfb \
+    curl \
     fonts-wqy-zenhei \
     fonts-wqy-microhei \
     fonts-liberation \

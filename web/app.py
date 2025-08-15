@@ -161,6 +161,41 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+def require_app_password():
+    """在渲染应用前要求输入访问密码。
+    默认密码为 'dad'，可通过环境变量 APP_PASSWORD 覆盖。
+    """
+    expected = os.getenv("APP_PASSWORD", "dad")
+
+    # 若未设置密码（空字符串），直接放行
+    if expected is None or expected == "":
+        return True
+
+    if "authenticated" not in st.session_state:
+        st.session_state["authenticated"] = False
+
+    if st.session_state["authenticated"]:
+        return True
+
+    st.title("🔒 访问受限")
+    st.write("请输入访问密码以继续使用应用。")
+
+    # 使用表单避免每次键入触发重跑
+    with st.form("password_form", clear_on_submit=False):
+        pwd = st.text_input("Password", type="password", placeholder="Enter password")
+        submitted = st.form_submit_button("Enter")
+
+    if submitted:
+        if pwd == expected:
+            st.session_state["authenticated"] = True
+            st.success("验证成功，正在进入应用…")
+            st.rerun()
+        else:
+            st.error("密码错误，请重试。")
+
+    # 阻止后续页面渲染
+    st.stop()
+
 def initialize_session_state():
     """初始化会话状态"""
     if 'analysis_results' not in st.session_state:
@@ -254,6 +289,8 @@ def main():
     """主应用程序"""
 
     # 初始化会话状态
+    # 在初始化与任何渲染之前进行密码校验
+    require_app_password()
     initialize_session_state()
 
     # 自定义CSS - 调整侧边栏宽度

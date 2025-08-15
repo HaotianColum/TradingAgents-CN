@@ -305,11 +305,15 @@ def run_stock_analysis(stock_symbol, analysis_date, analysts, research_depth, ll
         # 根据LLM提供商设置不同的配置
         if llm_provider == "dashscope":
             config["backend_url"] = "https://dashscope.aliyuncs.com/api/v1"
+            # 显式禁用OpenAI作为新闻等工具的回退来源
+            os.environ["DISABLE_OPENAI_SOURCES"] = "true"
         elif llm_provider == "deepseek":
             config["backend_url"] = "https://api.deepseek.com"
+            os.environ["DISABLE_OPENAI_SOURCES"] = "true"
         elif llm_provider == "google":
             # Google AI不需要backend_url，使用默认的OpenAI格式
             config["backend_url"] = "https://api.openai.com/v1"
+            os.environ["DISABLE_OPENAI_SOURCES"] = "true"
             
             # 根据研究深度优化Google模型选择
             if research_depth == 1:  # 快速分析 - 使用最快模型
@@ -335,11 +339,15 @@ def run_stock_analysis(stock_symbol, analysis_date, analysts, research_depth, ll
             config["backend_url"] = "https://api.openai.com/v1"
             logger.info(f"🤖 [OpenAI] 使用模型: {llm_model}")
             logger.info(f"🤖 [OpenAI] API端点: https://api.openai.com/v1")
+            # 允许OpenAI来源
+            os.environ["DISABLE_OPENAI_SOURCES"] = ""
         elif llm_provider == "openrouter":
             # OpenRouter使用OpenAI兼容API
             config["backend_url"] = "https://openrouter.ai/api/v1"
             logger.info(f"🌐 [OpenRouter] 使用模型: {llm_model}")
             logger.info(f"🌐 [OpenRouter] API端点: https://openrouter.ai/api/v1")
+            # OpenRouter同样兼容OpenAI来源
+            os.environ["DISABLE_OPENAI_SOURCES"] = ""
         elif llm_provider == "custom_openai":
             # 自定义OpenAI端点
             custom_base_url = st.session_state.get("custom_openai_base_url", "https://api.openai.com/v1")
@@ -347,6 +355,7 @@ def run_stock_analysis(stock_symbol, analysis_date, analysts, research_depth, ll
             config["custom_openai_base_url"] = custom_base_url
             logger.info(f"🔧 [自定义OpenAI] 使用模型: {llm_model}")
             logger.info(f"🔧 [自定义OpenAI] API端点: {custom_base_url}")
+            os.environ["DISABLE_OPENAI_SOURCES"] = ""
 
         # 修复路径问题 - 优先使用环境变量配置
         # 数据目录：优先使用环境变量，否则使用默认路径

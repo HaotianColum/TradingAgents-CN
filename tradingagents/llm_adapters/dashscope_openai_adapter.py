@@ -27,17 +27,42 @@ class ChatDashScopeOpenAI(ChatOpenAI):
         """初始化 DashScope OpenAI 兼容客户端"""
         
         # 设置 DashScope OpenAI 兼容接口的默认配置
-        kwargs.setdefault("base_url", "https://dashscope.aliyuncs.com/compatible-mode/v1")
-        kwargs.setdefault("api_key", os.getenv("DASHSCOPE_API_KEY"))
+        # 支持通过环境变量切换国际/国内端点
+        base_url_env = os.getenv("DASHSCOPE_BASE_URL")
+        if isinstance(base_url_env, str):
+            base_url_env = base_url_env.strip().rstrip("/")
+        use_intl = os.getenv("DASHSCOPE_USE_INTL", "").strip().lower() in (
+            "1", "true", "yes", "on", "intl", "international", "sg"
+        )
+        default_base = (
+            "https://dashscope-intl.aliyuncs.com/compatible-mode/v1" if use_intl 
+            else "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        )
+        kwargs.setdefault("base_url", base_url_env or default_base)
         kwargs.setdefault("model", "qwen-turbo")
         kwargs.setdefault("temperature", 0.1)
         kwargs.setdefault("max_tokens", 2000)
         
+        # 规范化并校验 API 密钥（去除首尾空白）
+        # 注意：如果传入的 api_key 为 None，则应回退到环境变量
+        raw_api_key = kwargs.get("api_key")
+        if not raw_api_key:
+            raw_api_key = os.getenv("DASHSCOPE_API_KEY")
+        if isinstance(raw_api_key, SecretStr):
+            raw_api_key = raw_api_key.get_secret_value()
+        if isinstance(raw_api_key, str):
+            stripped_key = raw_api_key.strip()
+            if stripped_key != raw_api_key and stripped_key:
+                logger.warning("检测到 DASHSCOPE_API_KEY 含有首尾空白，已自动修剪。")
+            raw_api_key = stripped_key
+
+        kwargs["api_key"] = raw_api_key
+
         # 检查 API 密钥
         if not kwargs.get("api_key"):
             raise ValueError(
-                "DashScope API key not found. Please set DASHSCOPE_API_KEY environment variable "
-                "or pass api_key parameter."
+                "DashScope API key not found or empty after trimming. Please set DASHSCOPE_API_KEY "
+                "environment variable or pass api_key parameter."
             )
         
         # 调用父类初始化
@@ -143,13 +168,17 @@ def create_dashscope_openai_llm(
 ) -> ChatDashScopeOpenAI:
     """创建 DashScope OpenAI 兼容 LLM 实例的便捷函数"""
     
-    return ChatDashScopeOpenAI(
+    init_kwargs = dict(
         model=model,
-        api_key=api_key,
         temperature=temperature,
         max_tokens=max_tokens,
-        **kwargs
+        **kwargs,
     )
+    # 仅在显式提供 api_key 时传递，避免 None 覆盖环境变量
+    if api_key is not None:
+        init_kwargs["api_key"] = api_key
+
+    return ChatDashScopeOpenAI(**init_kwargs)
 
 
 def test_dashscope_openai_connection(
